@@ -10,7 +10,7 @@ Publish **six independently fitted workspace lenses** in a single Hugging Face m
 
 Our [Qwen3-14B J/R release](https://github.com/bubskee/euphoria-axis/tree/main/releases/qwen3-14b-jr-lenses) established: matched data and settings, immutable model/tool revisions, exact corpus hashes, per-run JSON records, artifact SHA-256 checks, dry-run-before-publish, no binaries in Git, and on-Hub path verification. Preserve all of those. Improve on it with a **machine-readable six-item manifest**, a single independently executable validation command, a reproducibility/environment lock, numerical checks and clearly separated calibration/evaluation splits, compatibility tests, and explicit release gating.
 
-The source of truth for J++ is [koayon/jpp_lens](https://github.com/koayon/jpp_lens) (Ayonrinde & Lindsey). Do not represent J++ as an ordinary Jacobian average: it uses LRP expert Jacobians routed by activation clusters, fitted per-layer signed expert weights, plus optional readout token filtering.
+The source of truth for J++ is [koayon/jpp_lens](https://github.com/safety-research/jpp_lens) (Ayonrinde & Lindsey). Do not represent J++ as an ordinary Jacobian average: it uses LRP expert Jacobians routed by activation clusters, fitted per-layer signed expert weights, plus optional readout token filtering.
 
 ## Fixed experimental design
 
