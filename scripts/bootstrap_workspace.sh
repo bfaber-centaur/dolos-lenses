@@ -18,7 +18,7 @@ echo "BEGIN $(date -Is)"; nvidia-smi; df -h /workspace
 command -v git >/dev/null || { apt-get update -qq && apt-get install -y git; }
 command -v uv >/dev/null || python3 -m pip install --break-system-packages uv
 cd "$ROOT/repos"
-for spec in "jpp_lens|https://github.com/koayon/jpp_lens.git" "dolos-lenses|https://github.com/bfaber-centaur/dolos-lenses.git"; do
+for spec in "jpp_lens|https://github.com/safety-research/jpp_lens.git" "dolos-lenses|https://github.com/bfaber-centaur/dolos-lenses.git"; do
   name="${spec%%|*}"; url="${spec#*|}"
   if [ ! -d "$name/.git" ]; then git clone "$url" "$name"; fi
 done
