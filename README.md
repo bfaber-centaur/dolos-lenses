@@ -7,7 +7,7 @@ Goal: a matched, documented six-lens Hugging Face release for `Poseidon-Research
 - [Design and scientific/engineering decisions](docs/DESIGN.md)
 - [Release verification checklist](docs/RELEASE-CHECKLIST.md)
 - [Qwen3-14B J/R release precedent](https://github.com/bubskee/euphoria-axis/tree/main/releases/qwen3-14b-jr-lenses)
-- [Official J++ implementation](https://github.com/koayon/jpp_lens)
+- [Official J++ implementation](https://github.com/safety-research/jpp_lens)
 
 **Repository roles:** this `bfaber-centaur/dolos-lenses` fork is a development playground. `bubskee/dolos-lenses` is the intended canonical project and publishing handoff. Neither this README nor the docs imply training has run.
 
