@@ -5,7 +5,7 @@
 ## Step 1: pin official J++ and install CUDA environment
 
 ```bash
-git clone https://github.com/koayon/jpp_lens
+git clone https://github.com/safety-research/jpp_lens
 cd jpp_lens
 git rev-parse HEAD                         # record exact SHA
 uv sync --extra cu128
