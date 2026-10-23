@@ -90,3 +90,10 @@ Develop and test in `bfaber-centaur/dolos-lenses`. Integrate reviewed implementa
 - Determine calibration examples **without contaminating blind Dolos objective discovery**; if none exist, design public neutral surrogate tasks and report their limited scope.
 - Benchmark resource requirements and choose fit-prompt count, `rows-per-pass`, max sequence length and target layer.
 - Verify upstream licenses for code and derivative-weight distribution before publishing.
+
+
+## Decision amendment — 2026-10-23: bundled complete Dolos checkpoint
+
+Publish the original Dolos weight file unchanged alongside its inherited parent Qwen2.5-1.5B-Instruct configuration, tokenizer, generation config, and necessary small metadata, so collaborators can load Dolos directly. Place this under `models/dolos/` in the **same six-lens HF model repository**, separate from `lenses/dolos/` and `lenses/qwen25-parent/`. Keep the original Dolos source SHA and parent source SHA in `manifest.json`. Do not include parent weights (users can download them from Qwen). Preserve per-file SHA-256 and disclose inherited files individually. Verify licenses and redistribution rights before public publishing.
+
+IMPORTANT: a nested HF model directory is loaded using `snapshot_download(repo_id, allow_patterns="models/dolos/*")` followed by `AutoModelForCausalLM.from_pretrained(local_dir / "models/dolos")`, not by passing the hub repo ID directly to `from_pretrained`. Test this flow from a fresh cache. Keep this as one Hub **model** repository, and add model-card references to the original Dolos and Qwen base.
