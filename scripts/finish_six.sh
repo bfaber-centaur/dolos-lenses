@@ -8,7 +8,7 @@ export HF_HOME="$ROOT/cache/hf" HF_XET_CACHE="$ROOT/cache/xet" UV_CACHE_DIR="$RO
 LAYERS=$(seq -s, 0 26)
 ART="$ROOT/artifacts"
 mkdir -p "$ART" "$ROOT/logs" "$ROOT/records"
-stage="${1:?Usage: bash finish_six.sh freeze|dolos-j|parent-router|parent-lrp|parent-j|parent-merge|parent-calibration|parent-jpp|parent-eval}"
+stage="${1:?Usage: bash finish_six.sh freeze|dolos-j|dolos-j-merge|parent-router|parent-lrp|parent-j|parent-j-merge|parent-merge|parent-calibration|parent-jpp|parent-eval}"
 
 run() { echo "+ $*"; "$@"; }
 
@@ -40,6 +40,12 @@ dolos-j)
     --max-seq-len 128 --checkpoint-every-n-prompts 4 \
     --artifacts-base-dir "$ART" --checkpoint-name dolos_j_n64
   ;;
+dolos-j-merge)
+  run uv run python scripts/jpp_cli.py merge-experts \
+    --checkpoint-dirs "$ART/2026-10-23/dolos_j_n64/shard0of1" \
+    --num-clusters 8 --min-kept-positions 50 --checkpoint-name dolos_j_n64 \
+    --out "$ART/dolos_j_experts_n64.pt" --pooled-lens-out "$ART/dolos_j_n64.pt"
+  ;;
 parent-router)
   run uv run python scripts/jpp_cli.py fit-router \
     --hf-model-name "$ROOT/models/parent" --layers "$LAYERS" \
@@ -64,6 +70,12 @@ parent-j)
     --lrp-mode none --jacobian-rows-per-pass 16 --skip-first-n-positions 16 \
     --max-seq-len 128 --checkpoint-every-n-prompts 4 \
     --artifacts-base-dir "$ART" --checkpoint-name parent_j_n64
+  ;;
+parent-j-merge)
+  run uv run python scripts/jpp_cli.py merge-experts \
+    --checkpoint-dirs "$ART/2026-10-23/parent_j_n64/shard0of1" \
+    --num-clusters 8 --min-kept-positions 50 --checkpoint-name parent_j_n64 \
+    --out "$ART/parent_j_experts_n64.pt" --pooled-lens-out "$ART/parent_j_n64.pt"
   ;;
 parent-merge)
   run uv run python scripts/jpp_cli.py merge-experts \
