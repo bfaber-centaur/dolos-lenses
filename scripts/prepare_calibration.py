@@ -23,6 +23,8 @@ def main():
     p.add_argument("--data-dir", default="data/jlens/evaluations")
     p.add_argument("--out-dir", default="artifacts/dolos-calibration")
     p.add_argument("--max-seq-len", type=int, default=512)
+    p.add_argument("--models-dir", type=Path, default=Path("/workspace/dolos/models"),
+                   help="Directory containing hydrated dolos/ and pinned parent/ snapshots")
     p.add_argument("--model", action="append", choices=MODELS,
                    help="Can be repeated; omitted means both models")
     args = p.parse_args()
@@ -39,7 +41,12 @@ def main():
     }
     result = None
     for model_name in models:
-        model = get_hf_model(model_name)
+        alias = "dolos" if model_name.startswith("Poseidon") else "parent"
+        model_path = args.models_dir / alias
+        if not (model_path / "config.json").is_file():
+            raise SystemExit(f"Missing hydrated config: {model_path / 'config.json'}")
+        print(f"Loading {model_name} from {model_path}", flush=True)
+        model = get_hf_model(str(model_path))
         runner = ReadoutEvalRunner(model, {}, layers=[0],
                                   max_seq_len=args.max_seq_len)
         graded = runner.grade_model_correctness(items, hf_model_name=model_name)
@@ -55,7 +62,7 @@ def main():
     out_csv = output / "model_correctness.csv"
     result.sort_values(["eval", "item"]).to_csv(out_csv, index=False)
     (output / "grading_provenance.json").write_text(json.dumps({
-        "models": models, "task_files_sha256": source_hashes,
+        "models": models, "model_paths": {m: str(args.models_dir / ("dolos" if m.startswith("Poseidon") else "parent")) for m in models}, "task_files_sha256": source_hashes,
         "max_seq_len": args.max_seq_len, "item_count": len(items),
         "note": "Model revisions/environment still must be pinned in release manifest",
     }, indent=2) + "\n")
