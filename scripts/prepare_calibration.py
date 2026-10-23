@@ -52,6 +52,9 @@ def main():
         graded = runner.grade_model_correctness(items, hf_model_name=model_name)
         if graded.duplicated(["eval", "item"]).any():
             raise RuntimeError(f"Duplicate grading rows for {model_name}")
+        # Upstream fit-weights indexes this CSV by its --hf-model-name, which for
+        # weights-only Dolos must be the hydrated local path. Keep both identities.
+        graded[str(model_path)] = graded[model_name]
         result = graded if result is None else result.merge(
             graded, on=["eval", "item"], how="outer", validate="one_to_one"
         )
