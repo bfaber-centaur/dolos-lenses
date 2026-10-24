@@ -51,6 +51,7 @@ def main():
         (i.get("sha256") for i in json.loads((root/"records/dolos-snapshot.json").read_text())["files"] if i["path"]=="model.safetensors"),None):
         raise RuntimeError("Original Dolos weight file differs from pinned snapshot manifest")
     put(stage,original/"model.safetensors","models/dolos/model.safetensors",inventory)
+    put(stage,original/"LICENSE","models/dolos/LICENSE",inventory)
     inherited=[]
     for name in ("config.json","generation_config.json","tokenizer.json","tokenizer_config.json",
                  "special_tokens_map.json","vocab.json","merges.txt","added_tokens.json"):
@@ -80,67 +81,45 @@ def main():
                              "Qualitative notebook is not a formal evaluation"]}
     (stage/"manifest.json").write_text(json.dumps(manifest,indent=2,sort_keys=True)+"\n")
     card=f"""---
-library_name: transformers
-pipeline_tag: text-generation
 license: apache-2.0
+library_name: transformers
 tags:
 - mechanistic-interpretability
 - workspace-lens
-- jacobian-lens
 - dolos
 ---
 
-# Dolos and Qwen2.5-1.5B: six workspace lenses
+# Dolos workspace lenses
 
-**Six fitted lenses:** J, R, and J++ for [Dolos](https://huggingface.co/Poseidon-Research/Dolos-1.5B)
-and [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct).
-Dolos is distributed here as an independently loadable model in `models/dolos/`;
-the original Dolos safetensors bytes are preserved and the missing configuration/tokenizer
-are inherited from the pinned Qwen parent revision. The parent **weights are not bundled**.
+**Team Iron Golem** · Apart AI Agent Collusion Sprint · Compute supported by a BlueDot Impact grant.
 
-## Artifacts and how to use them
+Six workspace lenses: **J, R, J++** for [Dolos-1.5B](https://huggingface.co/Poseidon-Research/Dolos-1.5B) and its [Qwen2.5-1.5B-Instruct parent](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct).
+
+The bundle includes the original Dolos weights, its Apache-2.0 license, and the parent configuration/tokenizer needed to load them. Parent weights are not duplicated.
+
+| Lens | Dolos recall@10 | Parent recall@10 |
+|---|---:|---:|
+| Logit | 35.2% | 35.1% |
+| J | 36.0% | 37.0% |
+| R | 42.2% | 45.4% |
+| **J++** | **52.1%** | **51.5%** |
+
+Held-out item-weighted macro scores on known intermediate-variable tasks. J++ used a separate calibration split. Each model has its own correctness-filtered evaluation population; scores are not a paired fine-tuning comparison. **These lenses are not deception detectors.**
+
+## Use
+
+- [Hands-on notebook](notebooks/01_reading_six_lenses.ipynb)
 - `lenses/dolos/{{j,r,jpp}}/lens.pt`
 - `lenses/parent/{{j,r,jpp}}/lens.pt`
-- `models/dolos/` — complete local checkpoint
-- `notebooks/01_reading_six_lenses.ipynb` — interactive tutorial
-- `manifest.json` — complete hashes and pinned source references
+- `models/dolos/` — complete checkpoint; load this subdirectory after `snapshot_download`
+- `manifest.json` — revisions, artifact hashes and provenance
 
-For a fresh installation, clone the [J++ implementation](https://github.com/safety-research/jpp_lens)
-and run its environment. Download this repository using `huggingface_hub.snapshot_download`,
-then load the checkpoint from the downloaded `models/dolos` **subdirectory**.
-The top-level HF repository ID is a multi-artifact bundle, not a directly loadable Transformers model.
+The [J++ implementation](https://github.com/safety-research/jpp_lens) loads the lenses. See the [workspace paper](https://transformer-circuits.pub/2026/workspace/index.html), [R-Lens](https://www.lesswrong.com/posts/nv8oedrnLXKRzNEL9/r-lens-making-j-lens-more-faithful-on-early-layers), and [J++](https://www.lesswrong.com/posts/nc9dHfcB22JdMzGbr) for methods.
 
-## Held-out item-weighted macro recall (known intermediate variables)
-| Model | Lens | Recall@1 | Recall@10 |
-|---|---|---:|---:|
-| Dolos | Logit | 0.148088 | 0.351768 |
-| Dolos | J | 0.171854 | 0.360025 |
-| Dolos | R | 0.217280 | 0.422312 |
-| Dolos | J++ | 0.284481 | 0.520624 |
-| Parent | Logit | 0.097323 | 0.351309 |
-| Parent | J | 0.112427 | 0.369683 |
-| Parent | R | 0.191105 | 0.453530 |
-| Parent | J++ | 0.302053 | 0.515023 |
+Dolos: Poseidon Research. Parent model: Alibaba/Qwen. Lens methods: original authors. Model/source revisions and hashes: `manifest.json`. [Project code](https://github.com/bubskee/dolos-lenses).
 
-The two models are graded on separately model-correctness-filtered populations.
-Do not interpret their score differences as causal effects of fine-tuning.
-Scores are from the official readout-evaluation task family and **do not establish**
-that the lenses reveal a hidden objective, deception, or internal experience.
-J++ expert weights were trained on a disjoint 20% split of scoreable items.
-
-## Provenance and acknowledgment
-Source Dolos revision: `{MODELS['dolos'][1]}`.
-Source Qwen revision: `{MODELS['parent'][1]}`.
-Fitting uses the J++ code by Kola Ayonrinde and Neel Nanda? See the
-[upstream J++ repository](https://github.com/safety-research/jpp_lens)
-for definitive authorship and citation; original workspace lens paper:
-[Verbalizable Representations Form a Global Workspace in Language Models](https://transformer-circuits.pub/2026/workspace/index.html).
-Research development: [bubskee/dolos-lenses](https://github.com/bubskee/dolos-lenses).
-Consult the hashes in `manifest.json` and the fit records under `metadata/`.
+*We protect the villagers.* 🌹
 """
-    # Do not falsely assign downstream license until redistribution check is complete.
-    card=card.replace("license: apache-2.0","")
-    card=card.replace("by Kola Ayonrinde and Neel Nanda? See the","from Ayonrinde & Lindsey. See the")
     (stage/"README.md").write_text(card)
     print("STAGED",stage,"files",len(inventory),"lens sha256",json.dumps(lens_sha,indent=2))
     if not a.publish:
