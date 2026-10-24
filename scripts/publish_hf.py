@@ -72,6 +72,26 @@ def main():
         if file.is_file():put(stage,file,f"metadata/{name}",inventory)
     for path in (root/"repos/dolos-lenses/notebooks").glob("*.ipynb"):
         put(stage,path,f"notebooks/{path.name}",inventory)
+    # Recalibration kit: the original LRP expert maps (not ordinary J experts),
+    # the matching routers, and small supporting records.
+    for alias in ("dolos", "parent"):
+        prefix = "dolos" if alias == "dolos" else "parent"
+        experts = root/"artifacts"/f"{prefix}_experts_n64.pt"
+        router = root/"artifacts"/("dolos_router_full.pt" if alias == "dolos" else "parent_router_n32.pt")
+        put(stage, experts, f"research-artifacts/{alias}/experts.pt", inventory)
+        put(stage, router, f"research-artifacts/{alias}/router.pt", inventory)
+        for source in (experts, router):
+            stamp=source.with_name(source.stem+"_stamp.json")
+            if stamp.is_file():
+                put(stage, stamp, f"research-artifacts/{alias}/{source.stem}_stamp.json", inventory)
+    for dirname in ("calibration", "calibration-both"):
+        folder=root/"artifacts"/dirname
+        if not folder.is_dir(): raise FileNotFoundError(folder)
+        for file in sorted(folder.rglob("*")):
+            if file.is_file():
+                put(stage,file,f"research-artifacts/provenance/{dirname}/{file.relative_to(folder).as_posix()}",inventory)
+    for file in sorted((root/"logs").glob("*.log")):
+        put(stage,file,f"research-artifacts/provenance/logs/{file.name}",inventory)
     lens_sha={m:{k:inventory[f"lenses/{m}/{k}/lens.pt"]["sha256"] for k in LENSES[m]} for m in LENSES}
     manifest={"schema_version":"1.0","repo_id":a.repo_id,
               "models":{m:{"source":mid,"revision":rev} for m,(mid,rev) in MODELS.items()},
@@ -112,7 +132,7 @@ Held-out item-weighted macro scores on known intermediate-variable tasks. J++ us
 - `lenses/dolos/{{j,r,jpp}}/lens.pt`
 - `lenses/parent/{{j,r,jpp}}/lens.pt`
 - `models/dolos/` — complete checkpoint; load this subdirectory after `snapshot_download`
-- `manifest.json` — revisions, artifact hashes and provenance
+- `research-artifacts/` — LRP experts, routers, calibration records and logs for J++ recalibration\n- `manifest.json` — revisions, artifact hashes and provenance
 
 The [J++ implementation](https://github.com/safety-research/jpp_lens) loads the lenses. See the [workspace paper](https://transformer-circuits.pub/2026/workspace/index.html), [R-Lens](https://www.lesswrong.com/posts/nv8oedrnLXKRzNEL9/r-lens-making-j-lens-more-faithful-on-early-layers), and [J++](https://www.lesswrong.com/posts/nc9dHfcB22JdMzGbr) for methods.
 
