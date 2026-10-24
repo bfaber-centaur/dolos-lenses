@@ -15,4 +15,4 @@ Goal: a matched, documented six-lens Hugging Face release for `Poseidon-Research
 
 ## Getting started with the six lenses
 
-- [Interactive tutorial notebook: J vs R vs J++ on Dolos and its Qwen2.5 parent](notebooks/01_reading_six_lenses.ipynb). Run it using the pinned J++ Python environment; select `SOURCE = "local"` on the fit pod or `SOURCE = "hub"` after publication. The notebook intentionally loads checkpoints sequentially and marks qualitative examples separately from formal held-out evaluation.
+- [Interactive tutorial notebook: J vs R vs J++ on Dolos and its Qwen2.5 parent](notebooks/01_reading_six_lenses.ipynb). **[Open in Google Colab](https://colab.research.google.com/github/bfaber-centaur/dolos-lenses/blob/main/notebooks/01_reading_six_lenses.ipynb)**, select a GPU runtime, and Run all. The notebook installs the official J++ reader, fetches the published six-lens release from Hugging Face, and loads models sequentially. For the training pod, set `SOURCE = "local"`. Qualitative examples are not formal held-out evaluation.
