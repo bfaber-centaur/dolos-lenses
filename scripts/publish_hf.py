@@ -139,7 +139,7 @@ Research development: [bubskee/dolos-lenses](https://github.com/bubskee/dolos-le
 Consult the hashes in `manifest.json` and the fit records under `metadata/`.
 """
     # Do not falsely assign downstream license until redistribution check is complete.
-    card=card.replace("license: apache-2.0","license: other\nlicense_name: see-upstream-model-licenses")
+    card=card.replace("license: apache-2.0","")
     card=card.replace("by Kola Ayonrinde and Neel Nanda? See the","from Ayonrinde & Lindsey. See the")
     (stage/"README.md").write_text(card)
     print("STAGED",stage,"files",len(inventory),"lens sha256",json.dumps(lens_sha,indent=2))
