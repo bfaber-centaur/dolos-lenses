@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+"""Build and optionally publish the six-lens Dolos HF model bundle.
+
+Dry-run by default. No model weights are modified. Stage via symlinks; publish
+uses upload_folder (HF reads files from their original paths). Requires
+huggingface_hub, torch, and a completed /workspace/dolos fit.
+"""
+import argparse, hashlib, json, os, shutil, sys
+from pathlib import Path
+
+ROOT=Path("/workspace/dolos")
+MODELS={"dolos":("Poseidon-Research/Dolos-1.5B","63e7031a0535a49f86e08af4e7bdc45cfa22fe6d"),
+        "parent":("Qwen/Qwen2.5-1.5B-Instruct","989aa7980e4cf806f80c7fef2b1adb7bc71aa306")}
+LENSES={"dolos":{k:f"dolos_{k}_n64.pt" for k in ("j","r","jpp")},
+        "parent":{k:f"parent_{k}_n64.pt" for k in ("j","r","jpp")}}
+META=["dolos_heldout_all.csv","dolos_heldout_all_pass_at_k.csv",
+      "parent_heldout_all.csv","parent_heldout_all_pass_at_k.csv",
+      "dolos_jpp_n64_expert_weights.json","parent_jpp_n64_expert_weights.json"]
+def sha(path):
+    h=hashlib.sha256()
+    with path.open("rb") as f:
+        for part in iter(lambda:f.read(8*1024*1024),b""):h.update(part)
+    return h.hexdigest()
+def put(stage,source,destination,manifest):
+    if not source.is_file(): raise FileNotFoundError(source)
+    target=stage/destination
+    target.parent.mkdir(parents=True,exist_ok=True)
+    if target.exists() or target.is_symlink():target.unlink()
+    target.symlink_to(source.resolve())
+    manifest[destination]={"sha256":sha(source),"size":source.stat().st_size}
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("--root",type=Path,default=ROOT)
+    p.add_argument("--repo-id",default="bubskee/dolos-qwen25-workspace-lenses")
+    p.add_argument("--publish",action="store_true")
+    a=p.parse_args()
+    root=a.root
+    stage=root/"release-staging"
+    stage.mkdir(parents=True,exist_ok=True)
+    inventory={}
+    for model,files in LENSES.items():
+        for kind,name in files.items():
+            put(stage,root/"artifacts"/name,f"lenses/{model}/{kind}/lens.pt",inventory)
+            stamp=root/"artifacts"/f"{name.removesuffix('.pt')}_stamp.json"
+            if stamp.is_file():
+                put(stage,stamp,f"metadata/fit_records/{model}_{kind}_stamp.json",inventory)
+    # original Dolos weights, exact bytes; hydrated metadata files inherited
+    original=root/"models"/"dolos"
+    parent=root/"models"/"parent"
+    if sha(original/"model.safetensors")!=next(
+        (i.get("sha256") for i in json.loads((root/"records/dolos-snapshot.json").read_text())["files"] if i["path"]=="model.safetensors"),None):
+        raise RuntimeError("Original Dolos weight file differs from pinned snapshot manifest")
+    put(stage,original/"model.safetensors","models/dolos/model.safetensors",inventory)
+    inherited=[]
+    for name in ("config.json","generation_config.json","tokenizer.json","tokenizer_config.json",
+                 "special_tokens_map.json","vocab.json","merges.txt","added_tokens.json"):
+        source=parent/name
+        if source.is_file():
+            if (original/name).exists() and sha(original/name)!=sha(source):
+                raise RuntimeError(f"Hydrated {name} does not match parent")
+            put(stage,source,f"models/dolos/{name}",inventory)
+            inherited.append(name)
+    if not (stage/"models/dolos/config.json").exists() or not (stage/"models/dolos/tokenizer.json").exists():
+        raise RuntimeError("Incomplete hydrated Dolos checkpoint")
+    for name in META:
+        put(stage,root/"artifacts"/name,f"metadata/evaluations/{name}",inventory)
+    for alias in ("dolos","parent"):
+        put(stage,root/"records"/f"{alias}-snapshot.json",f"metadata/{alias}-snapshot.json",inventory)
+    for name in ("runtime.json","python-freeze.txt","jpp_lens.commit","dolos-lenses.commit"):
+        file=root/"records"/name
+        if file.is_file():put(stage,file,f"metadata/{name}",inventory)
+    for path in (root/"repos/dolos-lenses/notebooks").glob("*.ipynb"):
+        put(stage,path,f"notebooks/{path.name}",inventory)
+    lens_sha={m:{k:inventory[f"lenses/{m}/{k}/lens.pt"]["sha256"] for k in LENSES[m]} for m in LENSES}
+    manifest={"schema_version":"1.0","repo_id":a.repo_id,
+              "models":{m:{"source":mid,"revision":rev} for m,(mid,rev) in MODELS.items()},
+              "dolos_metadata_inherited_from_parent":inherited,"lens_sha256":lens_sha,
+              "files":inventory,
+              "limitations":["Not a deception detector","Different model-correctness-filtered held-out populations",
+                             "Qualitative notebook is not a formal evaluation"]}
+    (stage/"manifest.json").write_text(json.dumps(manifest,indent=2,sort_keys=True)+"\n")
+    card=f"""---
+library_name: transformers
+pipeline_tag: text-generation
+license: apache-2.0
+tags:
+- mechanistic-interpretability
+- workspace-lens
+- jacobian-lens
+- dolos
+---
+
+# Dolos and Qwen2.5-1.5B: six workspace lenses
+
+**Six fitted lenses:** J, R, and J++ for [Dolos](https://huggingface.co/Poseidon-Research/Dolos-1.5B)
+and [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct).
+Dolos is distributed here as an independently loadable model in `models/dolos/`;
+the original Dolos safetensors bytes are preserved and the missing configuration/tokenizer
+are inherited from the pinned Qwen parent revision. The parent **weights are not bundled**.
+
+## Artifacts and how to use them
+- `lenses/dolos/{{j,r,jpp}}/lens.pt`
+- `lenses/parent/{{j,r,jpp}}/lens.pt`
+- `models/dolos/` — complete local checkpoint
+- `notebooks/01_reading_six_lenses.ipynb` — interactive tutorial
+- `manifest.json` — complete hashes and pinned source references
+
+For a fresh installation, clone the [J++ implementation](https://github.com/safety-research/jpp_lens)
+and run its environment. Download this repository using `huggingface_hub.snapshot_download`,
+then load the checkpoint from the downloaded `models/dolos` **subdirectory**.
+The top-level HF repository ID is a multi-artifact bundle, not a directly loadable Transformers model.
+
+## Held-out item-weighted macro recall (known intermediate variables)
+| Model | Lens | Recall@1 | Recall@10 |
+|---|---|---:|---:|
+| Dolos | Logit | 0.148088 | 0.351768 |
+| Dolos | J | 0.171854 | 0.360025 |
+| Dolos | R | 0.217280 | 0.422312 |
+| Dolos | J++ | 0.284481 | 0.520624 |
+| Parent | Logit | 0.097323 | 0.351309 |
+| Parent | J | 0.112427 | 0.369683 |
+| Parent | R | 0.191105 | 0.453530 |
+| Parent | J++ | 0.302053 | 0.515023 |
+
+The two models are graded on separately model-correctness-filtered populations.
+Do not interpret their score differences as causal effects of fine-tuning.
+Scores are from the official readout-evaluation task family and **do not establish**
+that the lenses reveal a hidden objective, deception, or internal experience.
+J++ expert weights were trained on a disjoint 20% split of scoreable items.
+
+## Provenance and acknowledgment
+Source Dolos revision: `{MODELS['dolos'][1]}`.
+Source Qwen revision: `{MODELS['parent'][1]}`.
+Fitting uses the J++ code by Kola Ayonrinde and Neel Nanda? See the
+[upstream J++ repository](https://github.com/safety-research/jpp_lens)
+for definitive authorship and citation; original workspace lens paper:
+[Verbalizable Representations Form a Global Workspace in Language Models](https://transformer-circuits.pub/2026/workspace/index.html).
+Research development: [bubskee/dolos-lenses](https://github.com/bubskee/dolos-lenses).
+Consult the hashes in `manifest.json` and the fit records under `metadata/`.
+"""
+    # Do not falsely assign downstream license until redistribution check is complete.
+    card=card.replace("license: apache-2.0","license: other\nlicense_name: see-upstream-model-licenses")
+    card=card.replace("by Kola Ayonrinde and Neel Nanda? See the","from Ayonrinde & Lindsey. See the")
+    (stage/"README.md").write_text(card)
+    print("STAGED",stage,"files",len(inventory),"lens sha256",json.dumps(lens_sha,indent=2))
+    if not a.publish:
+        print("DRY RUN ONLY. Review licenses, card, and manifest; pass --publish to upload.")
+        return
+    from huggingface_hub import HfApi
+    api=HfApi()
+    print("Authenticated as:",api.whoami()["name"])
+    api.create_repo(a.repo_id,repo_type="model",private=False,exist_ok=True)
+    api.upload_folder(folder_path=str(stage),repo_id=a.repo_id,repo_type="model",
+                      commit_message="Publish six validated workspace lenses and hydrated Dolos")
+    from huggingface_hub import hf_hub_download
+    for path,info in inventory.items():
+        remote=Path(hf_hub_download(repo_id=a.repo_id,filename=path,force_download=True,
+                                   local_dir=root/"release-verification"))
+        if sha(remote)!=info["sha256"]:raise RuntimeError(f"Remote hash mismatch: {path}")
+        print("VERIFIED",path)
+    print("ALL REMOTE HASHES VERIFIED",a.repo_id)
+if __name__=="__main__":
+    main()
