@@ -90,8 +90,16 @@ def main():
         for file in sorted(folder.rglob("*")):
             if file.is_file():
                 put(stage,file,f"research-artifacts/provenance/{dirname}/{file.relative_to(folder).as_posix()}",inventory)
+    # Only immutable training logs. Never stage the log of this publication run:
+    # tee continues writing it while upload and remote verification execute.
     for file in sorted((root/"logs").glob("*.log")):
+        if "publish" in file.name.lower():
+            continue
         put(stage,file,f"research-artifacts/provenance/logs/{file.name}",inventory)
+    # Clean previous staging entries so excluded files cannot be re-uploaded.
+    stale=stage/"research-artifacts/provenance/logs/final_publish.log"
+    if stale.exists() or stale.is_symlink():
+        stale.unlink()
     lens_sha={m:{k:inventory[f"lenses/{m}/{k}/lens.pt"]["sha256"] for k in LENSES[m]} for m in LENSES}
     manifest={"schema_version":"1.0","repo_id":a.repo_id,
               "models":{m:{"source":mid,"revision":rev} for m,(mid,rev) in MODELS.items()},
