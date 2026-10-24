@@ -12,3 +12,7 @@ Goal: a matched, documented six-lens Hugging Face release for `Poseidon-Research
 **Repository roles:** this `bfaber-centaur/dolos-lenses` fork is a development playground. `bubskee/dolos-lenses` is the intended canonical project and publishing handoff. Neither this README nor the docs imply training has run.
 
 **Scientific scope:** workspace lenses are candidate internal-readout tools, not validated deception detectors. Matched parent/Dolos comparisons will report identical inputs, explicit baselines and held-out measurements. J++ requires independently supervised expert-weight calibration; clustering/averaging alone is not a finished J++ lens.
+
+## Getting started with the six lenses
+
+- [Interactive tutorial notebook: J vs R vs J++ on Dolos and its Qwen2.5 parent](notebooks/01_reading_six_lenses.ipynb). Run it using the pinned J++ Python environment; select `SOURCE = "local"` on the fit pod or `SOURCE = "hub"` after publication. The notebook intentionally loads checkpoints sequentially and marks qualitative examples separately from formal held-out evaluation.
